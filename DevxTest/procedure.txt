@@ -1,0 +1,54 @@
+﻿USE [Test]
+GO
+SET ANSI_NULLS ON
+GO
+SET QUOTED_IDENTIFIER ON
+GO
+-- =============================================
+-- Description:	STK ve STI tablolarındaki verileri  filtre ile listeler
+-- filtre : öncelikle MalAdi kontrol edilir kontrolde eşleşme gerçekleşirse STK'daki MalKodu ile STI filtrelenir ve tarihe göre listeler veya 
+
+-- =============================================
+ALTER PROCEDURE [dbo].[prc_Test] 
+	@MalKodu nvarchar(15),
+	@BasTarih int,
+	@BitTarih int
+AS
+BEGIN
+ 
+	/*
+	exec prc_Test 'OTOMATİK', '42373','42850'
+	*/
+	SET NOCOUNT ON;
+ 
+	select ROW_NUMBER() OVER(ORDER BY Tarih) AS SiraNo,
+		   
+		   -- İşlem Türü
+		   (case sti.IslemTur 
+				when 0 then 'Giriş'
+				when 1 then 'Çıkış'
+			end) as IslemTuru,
+			
+			sti.EvrakNo,
+
+		    CONVERT(VARCHAR(15), CAST(sti.Tarih - 2 AS datetime), 104) Tarih,
+
+			---Giriş Miktarı 
+			(case sti.IslemTur 
+				when 0 then sti.Miktar
+				when 1 then Cast(0 As int)
+			end) as GirisMiktar,
+
+			---- Çıkış Miktarı
+			(case sti.IslemTur 
+				when 0 then Cast(0 As int)
+				when 1 then sti.Miktar
+			end) as CikisMiktar
+			
+	from STI as sti
+	left join STK as stk on stk.MalKodu = sti.MalKodu
+	where   ((ISNULL(@MalKodu,'')='') OR  (stk.MalAdi like '%'+@MalKodu+'%') or (sti.MalKodu like '%'+@MalKodu+'%' ))
+			AND sti.Tarih between @BasTarih and @BitTarih
+	order by sti.Tarih asc
+		 
+END
